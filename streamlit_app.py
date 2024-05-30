@@ -1,91 +1,100 @@
-import numpy as np
-import pickle
-import pandas as pd
 import streamlit as st
+import pandas as pd
+from ucimlrepo import fetch_ucirepo 
+from sklearn.ensemble import AdaBoostClassifier
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
+from sklearn.impute import SimpleImputer
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
+@st.cache_data
+def load_data():
+    bank_marketing = fetch_ucirepo(id=222)
+    X = bank_marketing.data.features
+    target_var = bank_marketing.data.targets
+    # UCIMLRepo says to remove this, since the outcome of this data is not known before the call, so its useless for prediction
+    features = X.drop('duration', axis=1)
+    features=features.drop('balance',axis=1)
+    #Feature Engineering to remove the 999 values in pdays, and create a new binary class instead( "contacted")
+    features['contacted'] = features['pdays'].apply(lambda x: 0 if x == 999 else 1)
+    features=features.drop('pdays',axis=1)
 
-# Ensure that scikit-learn is installed: 
-# pip install scikit-learn
+    return target_var, features
 
-# Custom transformer for label encoding categorical columns
-class CustomLabelEncoder(BaseEstimator, TransformerMixin):
-    def __init__(self, columns):
-        self.columns = columns
-        self.label_encoders = {col: LabelEncoder() for col in self.columns}
 
-    def fit(self, X, y=None):
-        for col in self.columns:
-            self.label_encoders[col].fit(X[col])
-        return self
+@st.cache_data
+def initialize_and_train_model(features,target_var):
+    numeric_cols = features.select_dtypes(include=['int64', 'float64']).columns
+    categorical_cols = features.select_dtypes(include=['object']).columns
+    numeric_prep = Pipeline([
+    ('median_imputer', SimpleImputer(strategy='median')),
+    ('standard_scaler', StandardScaler())])
+    categorical_prep = Pipeline([
+    ('fill_missing', SimpleImputer(strategy='constant', fill_value='missing')),
+    ('one_hot_encoder', OneHotEncoder(handle_unknown='ignore'))])
+    data_preprocessor = ColumnTransformer([
+    ('numeric', numeric_prep, numeric_cols),
+    ('categorical', categorical_prep, categorical_cols)])
+    model_pipeline = Pipeline([
+    ('data_preprocessing', data_preprocessor),
+    ('ada_classifier', AdaBoostClassifier(n_estimators=50,learning_rate=0.1,random_state=42))])
+    model_pipeline.fit(features,target_var)
 
-    def transform(self, X):
-        X_copy = X.copy()
-        for col in self.columns:
-            X_copy[col] = self.label_encoders[col].transform(X_copy[col])
-        return X_copy
+    return model_pipeline
 
-# Define CustomFeaturesAdder class
-class CustomFeaturesAdder(BaseEstimator, TransformerMixin):
-    def __init__(self, feature1_index, feature2_index):
-        self.feature1_index = feature1_index
-        self.feature2_index = feature2_index
-
-    def fit(self, X, y=None):
-        return self
-
-    def transform(self, X):
-        X_copy = pd.DataFrame(X)  # Convert to DataFrame if not already
-        X_copy['new_feature'] = X_copy.iloc[:, self.feature1_index] * X_copy.iloc[:, self.feature2_index]
-        return X_copy
-
-# Load the saved model
-loaded_model = pickle.load(open('bank_marketing_prediction.sav', 'rb'))
-
-def bank_marketing_prediction(input_data):
-    column_names = ['age', 'job', 'marital', 'education', 'default', 'housing', 'loan',
-                    'contact', 'month', 'day_of_week', 'campaign', 'pdays', 'previous', 
-                    'poutcome', 'emp.var.rate', 'cons.price.idx', 'cons.conf.idx', 
-                    'euribor3m', 'nr.employed']
-
-    input_data = pd.DataFrame([input_data], columns=column_names)
-    prediction = loaded_model.predict(input_data)
-    return prediction[0]
 
 def main():
-    st.title('Bank Marketing Prediction Web App')
-    
-    age = st.number_input('Age')
-    job = st.selectbox('Job', ['admin.', 'blue-collar', 'entrepreneur', 'housemaid', 'management', 
-                               'retired', 'self-employed', 'services', 'student', 'technician', 
-                               'unemployed', 'unknown'])
-    marital = st.selectbox('Marital Status', ['divorced', 'married', 'single', 'unknown'])
-    education = st.selectbox('Education Level', ['basic.4y', 'basic.6y', 'basic.9y', 'high.school', 
-                                                 'illiterate', 'professional.course', 'university.degree', 'unknown'])
-    default = st.selectbox('Credit in Default', ['no', 'yes', 'unknown'])
-    housing = st.selectbox('Housing Loan', ['no', 'yes', 'unknown'])
-    loan = st.selectbox('Personal Loan', ['no', 'yes', 'unknown'])
-    contact = st.selectbox('Contact Communication Type', ['cellular', 'telephone'])
-    month = st.selectbox('Last Contact Month', ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 
-                                                'aug', 'sep', 'oct', 'nov', 'dec'])
-    day_of_week = st.selectbox('Last Contact Day of Week', ['mon', 'tue', 'wed', 'thu', 'fri'])
-    campaign = st.number_input('Number of Contacts Performed During this Campaign')
-    pdays = st.number_input('Number of Days that Passed by After the Client was Last Contacted from a Previous Campaign')
-    previous = st.number_input('Number of Contacts Performed Before this Campaign')
-    poutcome = st.selectbox('Outcome of the Previous Marketing Campaign', ['failure', 'nonexistent', 'success'])
-    emp_var_rate = st.number_input('Employment Variation Rate')
-    cons_price_idx = st.number_input('Consumer Price Index')
-    cons_conf_idx = st.number_input('Consumer Confidence Index')
-    euribor3m = st.number_input('Euribor 3 Month Rate')
-    nr_employed = st.number_input('Number of Employees')
+    st.title("Bank Marketing Prediction App")
 
-    prediction = ''
-    
-    if st.button('Bank Marketing Prediction'):
-        prediction = bank_marketing_prediction([age, job, marital, education, default, housing, loan,
-                                                contact, month, day_of_week, campaign, pdays, previous, 
-                                                poutcome, emp_var_rate, cons_price_idx, cons_conf_idx, 
-                                                euribor3m, nr_employed])
-        
-    st.success(prediction)
-    
-if __name__ == '__main__':
+    # Load data and model
+    target_var, features = load_data()
+    model = initialize_and_train_model(features, target_var)
+
+    # Show a snippet of the dataset
+    if st.checkbox('Show data sample'):
+        st.write(features.head())
+
+    # Predictions
+    st.subheader('Make a Prediction')
+
+    # Numeric Inputs
+    age = st.number_input('Age', min_value=0, max_value=100, value=30)
+    campaign = st.number_input('Campaign', min_value=0, value=1)
+    previous = st.number_input('Previous', min_value=0, value=0)
+    emp_var_rate = st.number_input('Emp Var Rate', value=0.0)
+    cons_price_idx = st.number_input('Cons Price Idx', value=0.0)
+    cons_conf_idx = st.number_input('Cons Conf Idx', value=0.0)
+    euribor3m = st.number_input('Euribor 3m', value=0.0)
+    nr_employed = st.number_input('Nr Employed', value=0.0)
+    contacted = st.number_input('Contacted', min_value=0, max_value=1, value=0)
+
+    # Categorical Inputs
+    job = st.selectbox('Job', options=features['job'].unique())
+    marital = st.selectbox('Marital', options=features['marital'].unique())
+    education = st.selectbox('Education', options=features['education'].unique())
+    default = st.selectbox('Default', options=features['default'].unique())
+    housing = st.selectbox('Housing', options=features['housing'].unique())
+    loan = st.selectbox('Loan', options=features['loan'].unique())
+    contact = st.selectbox('Contact', options=features['contact'].unique())
+    month = st.selectbox('Month', options=features['month'].unique())
+    day_of_week = st.selectbox('Day of Week', options=features['day_of_week'].unique())
+    poutcome = st.selectbox('Poutcome', options=features['poutcome'].unique())
+
+    # Predict button
+    if st.button('Predict'):
+        # Create a DataFrame from the input features
+        input_data = pd.DataFrame([[age, job, marital, education, default, housing, loan, contact,
+                                    month, day_of_week, campaign, previous, poutcome, emp_var_rate,
+                                    cons_price_idx, cons_conf_idx, euribor3m, nr_employed, contacted]],
+                                  columns=['age', 'job', 'marital', 'education', 'default', 'housing', 
+                                           'loan', 'contact', 'month', 'day_of_week', 'campaign', 
+                                           'previous', 'poutcome', 'emp.var.rate', 'cons.price.idx', 
+                                           'cons.conf.idx', 'euribor3m', 'nr.employed', 'contacted'])
+
+        # Make a prediction
+        prediction = model.predict(input_data)
+        st.write(f"The prediction is: {prediction[0]}")
+
+# Run the main function when the script is executed
+if __name__ == "__main__":
     main()
+
