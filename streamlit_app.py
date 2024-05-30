@@ -1,4 +1,3 @@
-pip install streamlit pandas numpy scikit-learn
 import numpy as np
 import pickle
 import pandas as pd
