@@ -12,14 +12,10 @@ class CustomFeaturesAdder(BaseEstimator, TransformerMixin):
         return self
     
     def transform(self, X, y=None):
-        # Create 'previous_contact'
-        X_new = X.copy()
-        X_new['previous_contact'] = (X_new['pdays'] != 999).astype(int)
-        X_new.loc[X_new["previous_contact"] == 0, "pdays"] = -1
-        
-        # Create 'unemployed'
-        X_new["unemployed"] = X_new["job"].isin(["student", "retired", "unemployed"]).astype(int)
-        
+        X_new['previous_campaign_success_rate'] = X_new['previous'] / (X_new['pdays'] + 1)
+        X_new['pdays_group'] = pd.cut(X_new['pdays'], bins=[-1, 0, 30, 90, 180, 999], labels=[0, 1, 2, 3, 4])
+        X_new['age_education_level'] = X_new['age'] * X_new['education'].astype('category').cat.codes
+       
         return X_new
 
 class CustomLabelEncoder(BaseEstimator, TransformerMixin):
@@ -54,8 +50,8 @@ def bank_marketing_prediction(input_data):
                     'poutcome', 'emp.var.rate', 'cons.price.idx', 'cons.conf.idx', 
                     'euribor3m', 'nr.employed']  # Use dot notation instead of underscores
 
-    input_df = pd.DataFrame([input_data], columns=column_names)
-    prediction = loaded_model.predict(input_df)
+    input_data = pd.DataFrame([input_data], columns=column_names)
+    prediction = loaded_model.predict(input_data)
     return prediction[0]
 
 
