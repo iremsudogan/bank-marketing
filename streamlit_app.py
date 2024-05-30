@@ -2,8 +2,6 @@ import numpy as np
 import pickle
 import pandas as pd
 import streamlit as st
-from sklearn.base import BaseEstimator, TransformerMixin
-from sklearn.preprocessing import LabelEncoder
 
 # Ensure that scikit-learn is installed: 
 # pip install scikit-learn
