@@ -4,7 +4,9 @@ import pandas as pd
 import streamlit as st
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.preprocessing import LabelEncoder
-from sklearn.compose import ColumnTransformer
+
+# Ensure that scikit-learn is installed: 
+# pip install scikit-learn
 
 # Custom transformer for label encoding categorical columns
 class CustomLabelEncoder(BaseEstimator, TransformerMixin):
@@ -37,27 +39,22 @@ class CustomFeaturesAdder(BaseEstimator, TransformerMixin):
         X_copy['new_feature'] = X_copy.iloc[:, self.feature1_index] * X_copy.iloc[:, self.feature2_index]
         return X_copy
 
-# loading the saved model
+# Load the saved model
 loaded_model = pickle.load(open('bank_marketing_prediction.sav', 'rb'))
 
 def bank_marketing_prediction(input_data):
-    # Correct the feature names to match the training data
     column_names = ['age', 'job', 'marital', 'education', 'default', 'housing', 'loan',
                     'contact', 'month', 'day_of_week', 'campaign', 'pdays', 'previous', 
                     'poutcome', 'emp.var.rate', 'cons.price.idx', 'cons.conf.idx', 
-                    'euribor3m', 'nr.employed']  # Use dot notation instead of underscores
+                    'euribor3m', 'nr.employed']
 
     input_data = pd.DataFrame([input_data], columns=column_names)
     prediction = loaded_model.predict(input_data)
     return prediction[0]
 
-
 def main():
-    
-    # Giving a title
     st.title('Bank Marketing Prediction Web App')
     
-    # Getting input from the user
     age = st.number_input('Age')
     job = st.selectbox('Job', ['admin.', 'blue-collar', 'entrepreneur', 'housemaid', 'management', 
                                'retired', 'self-employed', 'services', 'student', 'technician', 
@@ -82,10 +79,8 @@ def main():
     euribor3m = st.number_input('Euribor 3 Month Rate')
     nr_employed = st.number_input('Number of Employees')
 
-    # Code for prediction
     prediction = ''
     
-    # Getting the input data from the user
     if st.button('Bank Marketing Prediction'):
         prediction = bank_marketing_prediction([age, job, marital, education, default, housing, loan,
                                                 contact, month, day_of_week, campaign, pdays, previous, 
