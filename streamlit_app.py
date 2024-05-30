@@ -6,39 +6,6 @@ from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.preprocessing import LabelEncoder
 from sklearn.compose import ColumnTransformer
 
-# Custom transformer for label encoding categorical columns
-class CustomFeaturesAdder(BaseEstimator, TransformerMixin):
-    def fit(self, X, y=None):
-        return self
-    
-    def transform(self, X, y=None):
-        X_new['previous_campaign_success_rate'] = X_new['previous'] / (X_new['pdays'] + 1)
-        X_new['pdays_group'] = pd.cut(X_new['pdays'], bins=[-1, 0, 30, 90, 180, 999], labels=[0, 1, 2, 3, 4])
-        X_new['age_education_level'] = X_new['age'] * X_new['education'].astype('category').cat.codes
-       
-        return X_new
-
-class CustomLabelEncoder(BaseEstimator, TransformerMixin):
-    def __init__(self, categorical_columns):
-        self.categorical_columns = categorical_columns
-        self.encoders = None
-    
-    def fit(self, X, y=None):
-        self.encoders = {
-            col: LabelEncoder().fit(X[col].astype(str))
-            for col in self.categorical_columns
-        }
-        return self
-    
-    def transform(self, X, y=None):
-        X_new = X.copy()
-        for col, le in self.encoders.items():
-            # Handle unknown categories by converting them to string 'unknown'
-            X_new[col] = X_new[col].map(lambda s: 'unknown' if s not in le.classes_ else s).astype(str)
-            le.classes_ = np.append(le.classes_, 'unknown')
-            X_new[col] = le.transform(X_new[col])
-        return X_new
-
 
 # loading the saved model
 loaded_model = pickle.load(open('bank_marketing_prediction.sav', 'rb'))
