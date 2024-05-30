@@ -6,6 +6,36 @@ from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.preprocessing import LabelEncoder
 from sklearn.compose import ColumnTransformer
 
+# Custom transformer for label encoding categorical columns
+class CustomLabelEncoder(BaseEstimator, TransformerMixin):
+    def __init__(self, columns):
+        self.columns = columns
+        self.label_encoders = {col: LabelEncoder() for col in self.columns}
+
+    def fit(self, X, y=None):
+        for col in self.columns:
+            self.label_encoders[col].fit(X[col])
+        return self
+
+    def transform(self, X):
+        X_copy = X.copy()
+        for col in self.columns:
+            X_copy[col] = self.label_encoders[col].transform(X_copy[col])
+        return X_copy
+
+# Define CustomFeaturesAdder class
+class CustomFeaturesAdder(BaseEstimator, TransformerMixin):
+    def __init__(self, feature1_index, feature2_index):
+        self.feature1_index = feature1_index
+        self.feature2_index = feature2_index
+
+    def fit(self, X, y=None):
+        return self
+
+    def transform(self, X):
+        X_copy = pd.DataFrame(X)  # Convert to DataFrame if not already
+        X_copy['new_feature'] = X_copy.iloc[:, self.feature1_index] * X_copy.iloc[:, self.feature2_index]
+        return X_copy
 
 # loading the saved model
 loaded_model = pickle.load(open('bank_marketing_prediction.sav', 'rb'))
