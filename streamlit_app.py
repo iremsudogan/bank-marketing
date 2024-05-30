@@ -6,6 +6,9 @@ from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.preprocessing import LabelEncoder
 from sklearn.compose import ColumnTransformer
 
+# loading the saved model
+loaded_model = pickle.load(open('bank_marketing_prediction.sav', 'rb'))
+
 # Custom transformer for label encoding categorical columns
 class CustomLabelEncoder(BaseEstimator, TransformerMixin):
     def init(self, columns):
@@ -39,9 +42,6 @@ class FeaturesAdder(BaseEstimator, TransformerMixin):
         X_new['age_education_level'] = X_new['age'] * X_new['education'].astype('category').cat.codes
         return X_new
 
-# loading the saved model
-loaded_model = pickle.load(open('bank_marketing_prediction.sav', 'rb'))
-
 def bank_marketing_prediction(input_data):
     # Correct the feature names to match the training data
     column_names = ['age', 'job', 'marital', 'education', 'default', 'housing', 'loan',
@@ -49,8 +49,8 @@ def bank_marketing_prediction(input_data):
                     'poutcome', 'emp.var.rate', 'cons.price.idx', 'cons.conf.idx', 
                     'euribor3m', 'nr.employed']  # Use dot notation instead of underscores
 
-    input_df = pd.DataFrame([input_data], columns=column_names)
-    prediction = loaded_model.predict(input_df)
+    input_data = pd.DataFrame([input_data], columns=column_names)
+    prediction = loaded_model.predict(input_data)
     return prediction[0]
 
 
